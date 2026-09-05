@@ -364,13 +364,16 @@ describe("detectSnesHeader", () => {
  */
 
 describe("connectedCallback / render", () => {
-  it("builds the toolbar, dropzone, file list, and summary", () => {
+  it("builds the toolbar, description, dropzone, file list, and summary", () => {
     const el = mount();
 
     const buttons = el.querySelectorAll(".toolbar button");
 
-    expect(buttons).toHaveLength(3);
+    expect(buttons).toHaveLength(2);
     expect(Array.from(buttons).every((button) => (button as HTMLButtonElement).disabled)).toBe(true);
+    expect(el.actionButton.textContent).toBe("Remove & Download");
+
+    expect(el.querySelector(".description")?.textContent).toContain("Remove & Download");
 
     expect(el.querySelector('input[type="file"]')).not.toBeNull();
     expect(el.querySelector(".dropzone strong")?.textContent).toBe("Drop your SNES ROM files here");
@@ -381,12 +384,12 @@ describe("connectedCallback / render", () => {
 
   it("only builds the shell once, even if reconnected", () => {
     const el = mount();
-    const originalCleanButton = el.cleanButton;
+    const originalActionButton = el.actionButton;
 
     el.remove();
     document.body.appendChild(el);
 
-    expect(el.cleanButton).toBe(originalCleanButton);
+    expect(el.actionButton).toBe(originalActionButton);
   });
 });
 
@@ -440,24 +443,20 @@ describe("setupEvents wiring", () => {
     expect(addFiles).toHaveBeenCalledWith([file]);
   });
 
-  it("clicking the buttons calls removeHeaders, downloadFiles, and clear", () => {
+  it("clicking the buttons calls removeAndDownload and clear", () => {
     const el = mount();
 
-    const removeHeaders = vi.spyOn(el, "removeHeaders").mockImplementation(() => {});
-    const downloadFiles = vi.spyOn(el, "downloadFiles").mockImplementation(() => {});
+    const removeAndDownload = vi.spyOn(el, "removeAndDownload").mockImplementation(() => {});
     const clear = vi.spyOn(el, "clear").mockImplementation(() => {});
 
     // Disabled buttons don't dispatch clicks -- enable them to test the wiring itself.
-    el.cleanButton.disabled = false;
-    el.downloadButton.disabled = false;
+    el.actionButton.disabled = false;
     el.clearButton.disabled = false;
 
-    el.cleanButton.click();
-    el.downloadButton.click();
+    el.actionButton.click();
     el.clearButton.click();
 
-    expect(removeHeaders).toHaveBeenCalled();
-    expect(downloadFiles).toHaveBeenCalled();
+    expect(removeAndDownload).toHaveBeenCalled();
     expect(clear).toHaveBeenCalled();
   });
 });
@@ -532,14 +531,14 @@ describe("addFiles", () => {
     expect(consoleError).toHaveBeenCalled();
   });
 
-  it("disables the clean button while a file is still checking", async () => {
+  it("disables the action button while a file is still checking", async () => {
     const el = mount();
     const file = makeFile("game.smc", makeRom(LOROM_HEADERED + 0x40, [[LOROM_HEADERED]]));
 
     const pending = el.addFiles([file]);
 
     expect(el.files[0]?.status).toBe("checking");
-    expect(el.cleanButton.disabled).toBe(true);
+    expect(el.actionButton.disabled).toBe(true);
 
     await pending;
   });
@@ -567,7 +566,7 @@ describe("clear", () => {
  */
 
 describe("removeHeaders", () => {
-  it("strips exactly the copier header from ready entries and leaves others alone", async () => {
+  it("strips exactly the copier header from ready entries, leaves others alone, and returns what it cleaned", async () => {
     const el = mount();
 
     const readyFile = makeFile("game.smc", makeRom(LOROM_HEADERED + 0x40, [[LOROM_HEADERED]]));
@@ -577,7 +576,7 @@ describe("removeHeaders", () => {
 
     const originalBytes = new Uint8Array(el.files[0]!.buffer!);
 
-    el.removeHeaders();
+    const cleaned = el.removeHeaders();
 
     const ready = el.files[0]!;
     const untouched = el.files[1]!;
@@ -585,13 +584,14 @@ describe("removeHeaders", () => {
     expect(ready.status).toBe("cleaned");
     expect(ready.buffer).toBeNull();
     expect(untouched.status).toBe("no-header");
+    expect(cleaned).toEqual([ready]);
 
     const cleanedBytes = new Uint8Array(await ready.cleaned!.arrayBuffer());
 
     expect(cleanedBytes).toEqual(originalBytes.slice(0x200));
   });
 
-  it("marks an entry as errored if its buffer is missing", () => {
+  it("marks an entry as errored if its buffer is missing, and excludes it from the returned list", () => {
     const el = mount();
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -615,10 +615,11 @@ describe("removeHeaders", () => {
     });
 
     el.files.push(entry);
-    el.removeHeaders();
+    const cleaned = el.removeHeaders();
 
     expect(entry.status).toBe("error");
     expect(consoleError).toHaveBeenCalled();
+    expect(cleaned).toEqual([]);
   });
 });
 
@@ -629,11 +630,11 @@ describe("removeHeaders", () => {
  */
 
 describe("downloadFiles", () => {
-  it("does nothing when there are no cleaned files", () => {
+  it("does nothing with an empty list", () => {
     const el = mount();
     const createObjectURL = vi.spyOn(URL, "createObjectURL");
 
-    el.downloadFiles();
+    el.downloadFiles([]);
 
     expect(createObjectURL).not.toHaveBeenCalled();
   });
@@ -659,8 +660,7 @@ describe("downloadFiles", () => {
       cleaned: new Blob(["cleaned"], { type: "application/octet-stream" })
     };
 
-    el.files.push(entry);
-    el.downloadFiles();
+    el.downloadFiles([entry]);
 
     // Even a single file's download is scheduled (via a 0ms timer), not fired inline.
     expect(createObjectURL).not.toHaveBeenCalled();
@@ -698,8 +698,7 @@ describe("downloadFiles", () => {
       cleaned: new Blob(["cleaned"])
     };
 
-    el.files.push(entry);
-    el.downloadFiles();
+    el.downloadFiles([entry]);
     vi.runAllTimers();
 
     const link = appendChild.mock.calls[0]?.[0] as HTMLAnchorElement;
@@ -727,8 +726,7 @@ describe("downloadFiles", () => {
       cleaned: new Blob(["cleaned"])
     });
 
-    el.files.push(makeCleanedEntry("first.smc"), makeCleanedEntry("second.smc"));
-    el.downloadFiles();
+    el.downloadFiles([makeCleanedEntry("first.smc"), makeCleanedEntry("second.smc")]);
 
     // Nothing fires synchronously.
     expect(appendChild).not.toHaveBeenCalled();
@@ -742,6 +740,43 @@ describe("downloadFiles", () => {
     expect(appendChild).toHaveBeenCalledTimes(1);
 
     vi.advanceTimersByTime(1);
+    expect(appendChild).toHaveBeenCalledTimes(2);
+    expect((appendChild.mock.calls[1]?.[0] as HTMLAnchorElement).download).toBe("second.sfc");
+  });
+});
+
+/*
+ * =========================================================
+ * REMOVE & DOWNLOAD
+ * =========================================================
+ */
+
+describe("removeAndDownload", () => {
+  it("cleans ready entries and downloads exactly the ones it just cleaned, not previously-downloaded ones", async () => {
+    const el = mount();
+
+    vi.useFakeTimers();
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:http://localhost/mock-id");
+    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    const appendChild = vi.spyOn(document.body, "appendChild");
+
+    await el.addFiles([makeFile("first.smc", makeRom(LOROM_HEADERED + 0x40, [[LOROM_HEADERED]]))]);
+
+    el.removeAndDownload();
+    vi.advanceTimersByTime(0);
+
+    expect(el.files[0]?.status).toBe("cleaned");
+    expect(appendChild).toHaveBeenCalledTimes(1);
+    expect((appendChild.mock.calls[0]?.[0] as HTMLAnchorElement).download).toBe("first.sfc");
+
+    // A second batch, cleaned and downloaded later, shouldn't re-trigger
+    // a download for the first file.
+    await el.addFiles([makeFile("second.smc", makeRom(LOROM_HEADERED + 0x40, [[LOROM_HEADERED]]))]);
+
+    el.removeAndDownload();
+    vi.advanceTimersByTime(0);
+
     expect(appendChild).toHaveBeenCalledTimes(2);
     expect((appendChild.mock.calls[1]?.[0] as HTMLAnchorElement).download).toBe("second.sfc");
   });
@@ -888,28 +923,49 @@ describe("renderButtons", () => {
 
     el.renderButtons();
 
-    expect(el.cleanButton.disabled).toBe(true);
-    expect(el.downloadButton.disabled).toBe(true);
+    expect(el.actionButton.disabled).toBe(true);
     expect(el.clearButton.disabled).toBe(true);
   });
 
-  it("enables clear and clean once a ready file is present", async () => {
+  it("enables clear and action once a ready file is present", async () => {
     const el = mount();
 
     await el.addFiles([makeFile("game.smc", makeRom(LOROM_HEADERED + 0x40, [[LOROM_HEADERED]]))]);
 
-    expect(el.cleanButton.disabled).toBe(false);
+    expect(el.actionButton.disabled).toBe(false);
     expect(el.clearButton.disabled).toBe(false);
-    expect(el.downloadButton.disabled).toBe(true);
   });
 
-  it("enables download once a file has been cleaned", async () => {
+  it("disables the action button again once there's nothing left to clean", async () => {
     const el = mount();
 
     await el.addFiles([makeFile("game.smc", makeRom(LOROM_HEADERED + 0x40, [[LOROM_HEADERED]]))]);
     el.removeHeaders();
 
-    expect(el.downloadButton.disabled).toBe(false);
-    expect(el.cleanButton.disabled).toBe(true);
+    expect(el.actionButton.disabled).toBe(true);
+    expect(el.clearButton.disabled).toBe(false);
+  });
+});
+
+describe("renderFileRow", () => {
+  it("greys out already-clean files, since Remove & Download won't touch them", () => {
+    const el = mount();
+    const noHeaderEntry: FileEntry = {
+      file: makeFile("clean.sfc", new Uint8Array(4)),
+      status: "no-header",
+      detection: null,
+      buffer: null,
+      cleaned: null
+    };
+    const readyEntry: FileEntry = {
+      file: makeFile("game.smc", new Uint8Array(4)),
+      status: "ready",
+      detection: null,
+      buffer: null,
+      cleaned: null
+    };
+
+    expect(el.renderFileRow(noHeaderEntry).classList.contains("unaffected")).toBe(true);
+    expect(el.renderFileRow(readyEntry).classList.contains("unaffected")).toBe(false);
   });
 });

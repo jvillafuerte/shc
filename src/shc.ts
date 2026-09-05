@@ -121,8 +121,7 @@ class SnesHeaderCleaner extends HTMLElement {
   dropzone!: HTMLLabelElement;
   fileList!: HTMLDivElement;
   summary!: HTMLDivElement;
-  cleanButton!: HTMLButtonElement;
-  downloadButton!: HTMLButtonElement;
+  actionButton!: HTMLButtonElement;
   clearButton!: HTMLButtonElement;
 
   /*
@@ -165,8 +164,7 @@ class SnesHeaderCleaner extends HTMLElement {
       this.addFiles(event.dataTransfer!.files);
     });
 
-    this.cleanButton.addEventListener("click", () => this.removeHeaders());
-    this.downloadButton.addEventListener("click", () => this.downloadFiles());
+    this.actionButton.addEventListener("click", () => this.removeAndDownload());
     this.clearButton.addEventListener("click", () => this.clear());
   }
 
@@ -560,12 +558,27 @@ class SnesHeaderCleaner extends HTMLElement {
 
   /*
    * =========================================================
+   * REMOVE & DOWNLOAD
+   * =========================================================
+   */
+
+  removeAndDownload(): void {
+    // Only download what this call actually cleaned -- not every entry
+    // that happens to have a .cleaned blob, or re-clicking after adding
+    // more files would silently re-download everything from before too.
+    this.downloadFiles(this.removeHeaders());
+  }
+
+  /*
+   * =========================================================
    * REMOVE HEADERS
    * =========================================================
    */
 
-  removeHeaders(): void {
-    this.cleanButton.disabled = true;
+  removeHeaders(): FileEntry[] {
+    this.actionButton.disabled = true;
+
+    const cleaned: FileEntry[] = [];
 
     for (const entry of this.files) {
       // Only pending, high-confidence headered ROMs are processed.
@@ -581,6 +594,7 @@ class SnesHeaderCleaner extends HTMLElement {
 
         entry.status = "cleaned";
         entry.buffer = null;
+        cleaned.push(entry);
       } catch (error) {
         console.error(error);
         entry.status = "error";
@@ -589,6 +603,8 @@ class SnesHeaderCleaner extends HTMLElement {
     }
 
     this.update();
+
+    return cleaned;
   }
 
   /*
@@ -597,9 +613,7 @@ class SnesHeaderCleaner extends HTMLElement {
    * =========================================================
    */
 
-  downloadFiles(): void {
-    const cleanedFiles = this.files.filter((entry) => entry.cleaned);
-
+  downloadFiles(entries: FileEntry[]): void {
     /*
      * Safari only honors the first synthetic <a download> click when
      * several fire back-to-back in the same task -- the rest are
@@ -607,7 +621,7 @@ class SnesHeaderCleaner extends HTMLElement {
      * them onto separate ticks gets every one treated as its own
      * download instead.
      */
-    cleanedFiles.forEach((entry, index) => {
+    entries.forEach((entry, index) => {
       setTimeout(() => this.downloadFile(entry), index * DOWNLOAD_STAGGER_MS);
     });
   }
@@ -642,14 +656,21 @@ class SnesHeaderCleaner extends HTMLElement {
    * the toolbar buttons, the dropzone and its file input).
    */
   render(): void {
-    this.cleanButton = this.createButton("Remove headers", "clean");
-    this.downloadButton = this.createButton("Download files", "download secondary");
+    this.actionButton = this.createButton("Remove & Download", "action");
     this.clearButton = this.createButton("Clear", "clear danger");
 
     const toolbar = document.createElement("div");
 
     toolbar.className = "toolbar";
-    toolbar.append(this.cleanButton, this.downloadButton, this.clearButton);
+    toolbar.append(this.actionButton, this.clearButton);
+
+    const description = document.createElement("p");
+
+    description.className = "description";
+    description.textContent =
+      "Files with a detected copier header are cleaned and downloaded " +
+      "automatically when you click “Remove & Download” — anything " +
+      "already clean, unrecognized, or still being checked is left untouched.";
 
     this.input = document.createElement("input");
     this.input.type = "file";
@@ -675,7 +696,7 @@ class SnesHeaderCleaner extends HTMLElement {
     this.summary = document.createElement("div");
     this.summary.className = "summary";
 
-    this.append(toolbar, this.dropzone, this.fileList, this.summary);
+    this.append(toolbar, description, this.dropzone, this.fileList, this.summary);
   }
 
   createButton(label: string, className: string): HTMLButtonElement {
@@ -705,6 +726,13 @@ class SnesHeaderCleaner extends HTMLElement {
     const row = document.createElement("div");
 
     row.className = "file";
+
+    // Already clean: "Remove & Download" won't touch it, so grey it out
+    // to make that obvious.
+    if (entry.status === "no-header") {
+      row.classList.add("unaffected");
+    }
+
     row.append(this.renderFileInfo(entry), this.renderFileStatus(entry));
 
     return row;
@@ -772,11 +800,9 @@ class SnesHeaderCleaner extends HTMLElement {
 
   renderButtons(): void {
     const hasReadyFiles = this.files.some((entry) => entry.status === "ready");
-    const hasCleanedFiles = this.files.some((entry) => entry.cleaned);
     const checking = this.files.some((entry) => entry.status === "checking");
 
-    this.cleanButton.disabled = !hasReadyFiles || checking;
-    this.downloadButton.disabled = !hasCleanedFiles;
+    this.actionButton.disabled = !hasReadyFiles || checking;
     this.clearButton.disabled = this.files.length === 0;
   }
 

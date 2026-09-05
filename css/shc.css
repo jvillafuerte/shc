@@ -8,7 +8,6 @@ snes-header-cleaner {
 
   --color-bg-dropzone: #fafafa;
   --color-bg-card: #fff;
-  --color-bg-secondary: #e5e5e5;
 
   --color-border: #ddd;
   --color-border-dropzone: #aaa;
@@ -43,7 +42,6 @@ snes-header-cleaner {
 
     --color-bg-dropzone: #1a1a1c;
     --color-bg-card: #232325;
-    --color-bg-secondary: #3a3a3c;
 
     --color-border: #3a3a3c;
     --color-border-dropzone: #545456;
@@ -67,6 +65,12 @@ snes-header-cleaner .toolbar {
   flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 20px;
+}
+
+snes-header-cleaner .description {
+  margin: 0 0 16px;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
 }
 
 snes-header-cleaner .dropzone {
@@ -119,6 +123,11 @@ snes-header-cleaner .file {
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-bg-card);
+}
+
+/* Already clean -- "Remove & Download" won't touch these. */
+snes-header-cleaner .file.unaffected {
+  opacity: 0.5;
 }
 
 snes-header-cleaner .file-info {
@@ -177,11 +186,6 @@ snes-header-cleaner button {
   color: var(--color-text-on-accent);
   font: inherit;
   cursor: pointer;
-}
-
-snes-header-cleaner button.secondary {
-  background: var(--color-bg-secondary);
-  color: var(--color-text);
 }
 
 snes-header-cleaner button.danger {
