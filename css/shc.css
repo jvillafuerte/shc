@@ -1,0 +1,214 @@
+snes-header-cleaner {
+  --color-text: #222;
+  --color-text-muted: #777;
+  --color-text-on-accent: #fff;
+
+  --color-accent: #007aff;
+  --color-accent-bg: #f0f7ff;
+
+  --color-bg-dropzone: #fafafa;
+  --color-bg-card: #fff;
+  --color-bg-secondary: #e5e5e5;
+
+  --color-border: #ddd;
+  --color-border-dropzone: #aaa;
+
+  --color-status-ready: #16803c;
+  --color-status-cleaned: #0066cc;
+  --color-status-unknown: #c77700;
+  --color-status-error: #c62828;
+
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  color: var(--color-text);
+}
+
+@media (prefers-color-scheme: dark) {
+  snes-header-cleaner {
+    --color-text: #ececec;
+    --color-text-muted: #9a9a9e;
+    --color-text-on-accent: #fff;
+
+    --color-accent: #0a84ff;
+    --color-accent-bg: #112943;
+
+    --color-bg-dropzone: #1a1a1c;
+    --color-bg-card: #232325;
+    --color-bg-secondary: #3a3a3c;
+
+    --color-border: #3a3a3c;
+    --color-border-dropzone: #545456;
+
+    --color-status-ready: #30d158;
+    --color-status-cleaned: #409cff;
+    --color-status-unknown: #ff9f0a;
+    --color-status-error: #ff453a;
+  }
+}
+
+snes-header-cleaner *,
+snes-header-cleaner *::before,
+snes-header-cleaner *::after {
+  box-sizing: border-box;
+}
+
+snes-header-cleaner .toolbar {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+snes-header-cleaner .dropzone {
+  display: block;
+  padding: 40px 20px;
+  border: 2px dashed var(--color-border-dropzone);
+  border-radius: 12px;
+  text-align: center;
+  cursor: pointer;
+  background: var(--color-bg-dropzone);
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+snes-header-cleaner .dropzone:hover,
+snes-header-cleaner .dropzone.dragover {
+  border-color: var(--color-accent);
+  background: var(--color-accent-bg);
+}
+
+snes-header-cleaner .dropzone strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 1.1rem;
+}
+
+snes-header-cleaner .dropzone span {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+snes-header-cleaner input[type="file"] {
+  display: none;
+}
+
+snes-header-cleaner .files {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+snes-header-cleaner .file {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg-card);
+}
+
+snes-header-cleaner .file-info {
+  flex: 1;
+  min-width: 0;
+}
+
+snes-header-cleaner .filename {
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+snes-header-cleaner .details {
+  margin-top: 3px;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+snes-header-cleaner .status {
+  flex-shrink: 0;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+snes-header-cleaner .checking {
+  color: var(--color-text-muted);
+}
+
+snes-header-cleaner .ready {
+  color: var(--color-status-ready);
+}
+
+snes-header-cleaner .cleaned {
+  color: var(--color-status-cleaned);
+}
+
+snes-header-cleaner .no-header {
+  color: var(--color-text-muted);
+}
+
+snes-header-cleaner .unknown {
+  color: var(--color-status-unknown);
+}
+
+snes-header-cleaner .error {
+  color: var(--color-status-error);
+}
+
+snes-header-cleaner button {
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+snes-header-cleaner button.secondary {
+  background: var(--color-bg-secondary);
+  color: var(--color-text);
+}
+
+snes-header-cleaner button.danger {
+  background: var(--color-bg-card);
+  color: var(--color-status-error);
+  border: 1px solid var(--color-border);
+}
+
+snes-header-cleaner button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+snes-header-cleaner .summary {
+  margin-top: 12px;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  text-align: right;
+}
+
+@media (max-width: 480px) {
+  snes-header-cleaner .dropzone {
+    padding: 28px 16px;
+  }
+
+  snes-header-cleaner .status {
+    flex-basis: 100%;
+    text-align: left;
+  }
+}
